@@ -21,8 +21,24 @@ public static class SetsAndMaps
     /// <param name="words">An array of 2-character words (lowercase, no duplicates)</param>
     public static string[] FindPairs(string[] words)
     {
-        // TODO Problem 1 - ADD YOUR CODE HERE
-        return [];
+        var set = new HashSet<string>(words);
+        var result = new HashSet<string>();
+
+        foreach (var word in words)
+        {
+            if (word[0] == word[1]) continue; // skip same-letter words like "aa"
+
+            var reversed = new string(new[] { word[1], word[0] });
+
+            if (set.Contains(reversed))
+            {
+                // Create a normalized pair so we don't add both "am & ma" and "ma & am"
+                var pair = word.CompareTo(reversed) < 0 ? $"{word} & {reversed}" : $"{reversed} & {word}";
+                result.Add(pair);
+            }
+        }
+
+        return result.ToArray();
     }
 
     /// <summary>
@@ -42,7 +58,18 @@ public static class SetsAndMaps
         foreach (var line in File.ReadLines(filename))
         {
             var fields = line.Split(",");
-            // TODO Problem 2 - ADD YOUR CODE HERE
+            if (fields.Length < 4) continue;
+
+            var degree = fields[3].Trim();
+
+            if (!degrees.ContainsKey(degree))
+            {
+                degrees[degree] = 1;
+            }
+            else
+            {
+                degrees[degree]++;
+            }
         }
 
         return degrees;
@@ -66,8 +93,27 @@ public static class SetsAndMaps
     /// </summary>
     public static bool IsAnagram(string word1, string word2)
     {
-        // TODO Problem 3 - ADD YOUR CODE HERE
-        return false;
+        word1 = word1.Replace(" ", "").ToLower();
+        word2 = word2.Replace(" ", "").ToLower();
+
+        if (word1.Length != word2.Length) return false;
+
+        var count = new Dictionary<char, int>();
+
+        foreach (var c in word1)
+        {
+            if (!count.ContainsKey(c)) count[c] = 0;
+            count[c]++;
+        }
+
+        foreach (var c in word2)
+        {
+            if (!count.ContainsKey(c)) return false;
+            count[c]--;
+            if (count[c] < 0) return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -89,18 +135,35 @@ public static class SetsAndMaps
         const string uri = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
         using var client = new HttpClient();
         using var getRequestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
-        using var jsonStream = client.Send(getRequestMessage).Content.ReadAsStream();
-        using var reader = new StreamReader(jsonStream);
-        var json = reader.ReadToEnd();
+        using var response = client.Send(getRequestMessage);
+        using var jsonStream = response.Content.ReadAsStream();
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-        var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(json, options);
+        var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(jsonStream, options);
 
-        // TODO Problem 5:
-        // 1. Add code in FeatureCollection.cs to describe the JSON using classes and properties 
-        // on those classes so that the call to Deserialize above works properly.
-        // 2. Add code below to create a string out each place a earthquake has happened today and its magitude.
-        // 3. Return an array of these string descriptions.
-        return [];
+        var summaries = new List<string>();
+        foreach (var feature in featureCollection.Features)
+        {
+            var place = feature.Properties.Place;
+            var mag = feature.Properties.Mag;
+
+            string magText;
+            if (mag.HasValue)
+            {
+                magText = mag.Value.ToString("0.0");
+            }
+            else
+            {
+                magText = "unknown";
+            }
+
+            string summary = $"{place} - Mag {magText}";
+
+            Console.WriteLine(summary);
+
+            summaries.Add(summary);
+        }
+
+        return summaries.ToArray();
     }
 }
